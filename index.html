@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2035: Crisis Directive</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --panel: #1a1a1a;
+            --text: #c8c8c8;
+            --accent: #6d2a2a;
+            --border: #444;
+        }
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'VT323', monospace;
+            margin: 0;
+            padding: 20px;
+            font-size: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--panel);
+            border: 2px solid var(--border);
+            box-shadow: 0 0 15px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+        }
+        /* CRT effect */
+        #game-container::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 999;
+            pointer-events: none;
+        }
+        #top-bar {
+            display: flex;
+            justify-content: space-between;
+            background: #000;
+            padding: 10px;
+            border-bottom: 2px solid var(--border);
+            font-size: 18px;
+        }
+        .stat { color: #fff; }
+        #nav-bar {
+            display: flex;
+            border-bottom: 2px solid var(--border);
+        }
+        #nav-bar button {
+            flex: 1;
+            background: #222;
+            color: var(--text);
+            border: none;
+            border-right: 2px solid var(--border);
+            padding: 10px;
+            font-family: inherit;
+            font-size: 18px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        #nav-bar button:hover { background: #333; }
+        #nav-bar button:last-child { border-right: none; }
+        
+        .tab-content {
+            display: none;
+            padding: 20px;
+            min-height: 400px;
+        }
+        .active-tab { display: block; }
+
+        /* Decision Desk */
+        #event-image-container {
+            width: 100%;
+            height: 250px;
+            background: #000;
+            border: 2px solid var(--border);
+            margin-bottom: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        #event-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: grayscale(80%) sepia(20%);
+        }
+        #event-title {
+            color: #fff;
+            margin-top: 0;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
+        }
+        #event-text {
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+        .choice-btn {
+            display: block;
+            width: 100%;
+            background: #222;
+            color: var(--text);
+            border: 1px solid var(--border);
+            padding: 10px;
+            margin-bottom: 10px;
+            font-family: inherit;
+            font-size: 18px;
+            text-align: left;
+            cursor: pointer;
+            position: relative;
+            z-index: 1000; /* Keeps buttons clickable above CRT effect */
+        }
+        .choice-btn:hover { background: var(--accent); color: #fff; }
+
+        /* Map Room */
+        #map-area {
+            width: 100%;
+            height: 300px;
+            background: #111;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            flex-direction: column;
+        }
+        .map-region {
+            display: flex;
+            width: 80%;
+            height: 200px;
+            border: 1px solid #444;
+        }
+        .west-russia { flex: 1; background: #2a1b1b; border-right: 2px dashed #888; display: flex; align-items: center; justify-content: center; }
+        .east-russia { flex: 1; background: #1b2a1b; display: flex; align-items: center; justify-content: center; }
+
+        /* Tech Tree */
+        .tech-item {
+            background: #222;
+            border: 1px solid var(--border);
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 1000;
+        }
+        .tech-buy {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .tech-buy:hover:not(:disabled) { background: var(--accent); }
+        .tech-buy:disabled { color: #555; cursor: not-allowed; }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- Top Bar Stats -->
+    <div id="top-bar">
+        <div>PUB: <span id="stat-support" class="stat">50</span>%</div>
+        <div>TREASURY: $<span id="stat-treasury" class="stat">100</span>M</div>
+        <div>MIL: <span id="stat-military" class="stat">50</span></div>
+        <div>RES: <span id="stat-resources" class="stat">100</span></div>
+        <div>FOR: <span id="stat-foreign" class="stat">50</span></div>
+    </div>
+
+    <!-- Navigation -->
+    <div id="nav-bar">
+        <button onclick="switchTab('view-decision')">Decision Desk</button>
+        <button onclick="switchTab('view-map')">War Room</button>
+        <button onclick="switchTab('view-tech')">R&D</button>
+    </div>
+
+    <!-- Decision Desk (Story / Sandbox) -->
+    <div id="view-decision" class="tab-content active-tab">
+        <div id="event-image-container">
+            <!-- Using Placehold.co to simulate art popping up dynamically -->
+            <img id="event-image" src="" alt="Event Scene">
+        </div>
+        <h2 id="event-title">Loading...</h2>
+        <div id="event-text">Please wait.</div>
+        <div id="event-choices"></div>
+    </div>
+
+    <!-- Map Room -->
+    <div id="view-map" class="tab-content">
+        <h2>Strategic Map: 2035 Borders</h2>
+        <div id="map-area">
+            <div class="map-region">
+                <div class="west-russia">Western Govt (You)</div>
+                <div class="east-russia">Eastern Separatists</div>
+            </div>
+            <p style="margin-top:20px; font-size:16px; text-align:center;">The fracture line sits along the Ural Mountains.</p>
+        </div>
+    </div>
+
+    <!-- Tech Tree -->
+    <div id="view-tech" class="tab-content">
+        <h2>National Upgrades</h2>
+        <div class="tech-item">
+            <div>
+                <strong>Modernized Drilling</strong><br>
+                <span style="font-size:16px; color:#aaa;">Increases Natural Resources output.</span>
+            </div>
+            <button id="tech-btn-drilling" class="tech-buy" onclick="buyTech('drilling', 50)">$50M</button>
+        </div>
+        <div class="tech-item">
+            <div>
+                <strong>State Media Network</strong><br>
+                <span style="font-size:16px; color:#aaa;">Passively boosts Public Support.</span>
+            </div>
+            <button id="tech-btn-propaganda" class="tech-buy" onclick="buyTech('propaganda', 40)">$40M</button>
+        </div>
+        <div class="tech-item">
+            <div>
+                <strong>Advanced Logistics</strong><br>
+                <span style="font-size:16px; color:#aaa;">Boosts Military power.</span>
+            </div>
+            <button id="tech-btn-logistics" class="tech-buy" onclick="buyTech('logistics', 60)">$60M</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- STATE MANAGEMENT ---
+    let state = {
+        support: 40,
+        treasury: 100,
+        military: 40,
+        resources: 80,
+        foreign: 50,
+        techs: { drilling: false, propaganda: false, logistics: false }
+    };
+
+    function updateUI() {
+        document.getElementById('stat-support').innerText = state.support;
+        document.getElementById('stat-treasury').innerText = state.treasury;
+        document.getElementById('stat-military').innerText = state.military;
+        document.getElementById('stat-resources').innerText = state.resources;
+        document.getElementById('stat-foreign').innerText = state.foreign;
+    }
+
+    function applyEffects(effects) {
+        if(effects.support) state.support += effects.support;
+        if(effects.treasury) state.treasury += effects.treasury;
+        if(effects.military) state.military += effects.military;
+        if(effects.resources) state.resources += effects.resources;
+        if(effects.foreign) state.foreign += effects.foreign;
+        
+        // Ensure stats stay within 0-100 logic (except money)
+        for (let key in state) {
+            if (typeof state[key] === 'number') {
+                if (state[key] > 100 && key !== 'treasury') state[key] = 100;
+                if (state[key] < 0) state[key] = 0;
+            }
+        }
+        updateUI();
+        checkLossCondition();
+    }
+
+    function checkLossCondition() {
+        if (state.support <= 0) alert("GAME OVER: You were overthrown by a public revolution.");
+        if (state.treasury < 0) alert("GAME OVER: State bankruptcy. The military has mutinied.");
+    }
+
+    // --- UI NAVIGATION ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active-tab'));
+        document.getElementById(tabId).classList.add('active-tab');
+    }
+
+    function buyTech(techId, cost) {
+        if (state.treasury >= cost && !state.techs[techId]) {
+            state.treasury -= cost;
+            state.techs[techId] = true;
+            
+            // Apply a one-time boost for this prototype
+            if (techId === 'drilling') state.resources += 30;
+            if (techId === 'propaganda') state.support += 20;
+            if (techId === 'logistics') state.military += 25;
+            
+            updateUI();
+            let btn = document.getElementById(`tech-btn-${techId}`);
+            btn.disabled = true;
+            btn.innerText = "OWNED";
+        }
+    }
+
+    // --- STORY & EVENT ENGINE ---
+    const storyEvents = {
+        "start": {
+            title: "The 2035 Schism",
+            image: "https://placehold.co/600x250/222/555?text=Assassination+Aftermath",
+            text: "The President has just been assassinated during a televised national speech. The nation has instantly fractured. The military is divided, and you have assumed emergency control of the Western Republic. The Eastern faction is mobilizing on the borders. What is your first executive order?",
+            choices: [
+                { text: "Secure the capital with military force (Support -10, Mil +20, Treas -10)", effects: { support: -10, military: 20, treasury: -10 }, next: "sandbox" },
+                { text: "Promise democratic elections to calm the public (Support +20, Mil -10)", effects: { support: 20, military: -10 }, next: "sandbox" },
+                { text: "Seize the natural resource pipelines (Res +30, For -20)", effects: { resources: 30, foreign: -20 }, next: "sandbox" }
+            ]
+        }
+    };
+
+    const sandboxPool = [
+        {
+            title: "Border Skirmish",
+            image: "https://placehold.co/600x250/3a1c1c/999?text=Border+Conflict",
+            text: "Eastern separatist forces have probed our defensive lines near the Urals. We must respond immediately.",
+            choices: [
+                { text: "Repel them with force (Mil -10, Support +5)", effects: { military: -10, support: 5 } },
+                { text: "De-escalate diplomatically (For +10, Support -5)", effects: { foreign: 10, support: -5 } }
+            ]
+        },
+        {
+            title: "Economic Sanctions",
+            image: "https://placehold.co/600x250/1c3a27/999?text=Foreign+Sanctions",
+            text: "The European Economic Cooperation (EEC) is threatening sanctions unless we export our resources at a massive discount.",
+            choices: [
+                { text: "Comply and sell cheap (Res -20, For +15, Treas +10)", effects: { resources: -20, foreign: 15, treasury: 10 } },
+                { text: "Refuse the deal (For -15, Support +10)", effects: { foreign: -15, support: 10 } }
+            ]
+        },
+        {
+            title: "Oligarch Bribe",
+            image: "https://placehold.co/600x250/1c1c3a/999?text=Oligarch+Meeting",
+            text: "A prominent oligarch offers funding for your administration, in exchange for ignoring their illegal resource extraction.",
+            choices: [
+                { text: "Accept the money (Treas +30, Res -15, Support -10)", effects: { treasury: 30, resources: -15, support: -10 } },
+                { text: "Arrest them (Treas -10, Support +15, Mil +5)", effects: { treasury: -10, support: 15, military: 5 } }
+            ]
+        }
+    ];
+
+    function loadEvent(eventId) {
+        let ev;
+        if (eventId === "sandbox") {
+            // Pick a random sandbox event
+            const randomEv = sandboxPool[Math.floor(Math.random() * sandboxPool.length)];
+            ev = JSON.parse(JSON.stringify(randomEv)); 
+            // Route all sandbox choices back into the sandbox for an endless loop
+            ev.choices.forEach(c => c.next = "sandbox"); 
+        } else {
+            ev = storyEvents[eventId];
+        }
+
+        if (!ev) return;
+        
+        document.getElementById('event-title').innerText = ev.title;
+        document.getElementById('event-image').src = ev.image;
+        document.getElementById('event-text').innerText = ev.text;
+        
+        const choicesDiv = document.getElementById('event-choices');
+        choicesDiv.innerHTML = ''; 
+        
+        ev.choices.forEach(choice => {
+            const btn = document.createElement('button');
+            btn.className = 'choice-btn';
+            btn.innerText = choice.text;
+            btn.onclick = () => {
+                applyEffects(choice.effects);
+                loadEvent(choice.next);
+            };
+            choicesDiv.appendChild(btn);
+        });
+    }
+
+    // --- INITIALIZE GAME ---
+    updateUI();
+    loadEvent("start");
+
+</script>
+</body>
+</html>
